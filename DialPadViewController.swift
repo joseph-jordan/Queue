@@ -15,6 +15,7 @@ class DialPadViewController: UIViewController {
         prepareQueueButtons()
         setUpNumberStuff()
         setUpGestureRecognizers()
+        Data.thisRec = nil
     }
     
     //======================= SETUP ====================
@@ -27,7 +28,7 @@ class DialPadViewController: UIViewController {
 
     func setUpNumberStuff() {
         numberLabel.text = ""
-        addNumberButton.isHidden = true
+        contactLabel.text = ""
         let size = 65 / 320 * self.view.frame.width
         for padSize in padSizes {
             padSize.constant = size
@@ -79,25 +80,42 @@ class DialPadViewController: UIViewController {
     //======================= HELPERS ==================
     func append(str: String) {
         if (numberLabel.text ?? "") == "" {
-            addNumberButton.isHidden = false
             presentQueueButtons()
+            instructions.isHidden = true
         }
         if numberLabel.text!.count == 3 || numberLabel.text!.count == 7 {
             numberLabel.text = numberLabel.text! + "-" + str
         } else {
             numberLabel.text = numberLabel.text! + str
         }
+        var number = numberLabel.text!
+        number.removeAll(where: {$0 == "-"})
+        if number.count == 10 {
+            for rec in Data.allRecs {
+                if number == rec.phoneNumber {
+                    Data.thisRec = rec
+                    contactLabel.text = rec.getFullName()
+                    return
+                }
+            }
+        }
+        Data.thisRec = nil
+        contactLabel.text = ""
     }
     
     @objc func goToDashboard() {
+        if Data.dialJamCallsMade > 0 {
+            Data.newEvent(event: Event(date: Date(), summary: "\(Data.dialJamCallsMade) calls, \(Data.dialJamBooked) demos", ID: String(Data.nextEventTag)))
+        }
+        Data.dialJamBooked = 0
+        Data.dialJamCallsMade = 0
+        Data.dialJamPhoneNumber = ""
+        Data.thisRec = nil
+        Data.refreshStatusesAndHotness()
         performSegue(withIdentifier: "dialpadToDashboard", sender: self)
     }
     
     //======================= OUTLETS ====================
-    
-    
-    @IBAction func addNumberTriggered(_ sender: Any) {
-    }
     
     @IBAction func deleteTriggered(_ sender: Any) {
         var str = numberLabel.text!
@@ -112,28 +130,54 @@ class DialPadViewController: UIViewController {
             }
         }
         numberLabel.text = str
+        var number = numberLabel.text!
+        number.removeAll(where: {$0 == "-"})
+        if number.count == 10 {
+            for rec in Data.allRecs {
+                if number == rec.phoneNumber {
+                    Data.thisRec = rec
+                    contactLabel.text = rec.getFullName()
+                    return
+                }
+            }
+        }
+        Data.thisRec = nil
+        contactLabel.text = ""
         if str == "" {
-            addNumberButton.isHidden = true
             hideQueueButtons()
+            instructions.isHidden = false
         }
     }
     
     @IBAction func sendTriggered(_ sender: Any) {
         var number : String = numberLabel.text!
         number.removeAll(where: {$0 == "-"})
+        if number.count != 10 {
+            contactLabel.text = "phone number must be 10 digits"
+            return
+        }
         let numberURL : NSURL = URL(string: "tel://" + number)! as NSURL
         
         UIApplication.shared.open(numberURL as URL, options: [:], completionHandler: {(success) in
+            Data.dialJamPhoneNumber = number
+            if let rec = Data.thisRec {
+                if (rec.firstName ?? "") != "" || (rec.lastName ?? "") != "" {
+                    self.performSegue(withIdentifier: "singleJam", sender: self)
+                } else {
+                    self.performSegue(withIdentifier: "dialJam", sender: self)
+                }
+            } else {
+                self.performSegue(withIdentifier: "dialJam", sender: self)
+            }
         })
     }
     
     @IBAction func clearTriggered(_ sender: Any) {
         numberLabel.text = ""
-        addNumberButton.isHidden = true
+        instructions.isHidden = false
+        contactLabel.text = ""
         hideQueueButtons()
     }
-    
-    @IBOutlet weak var addNumberButton: UIButton!
     
     
     @IBOutlet weak var deleteButton: UIButton!
@@ -153,6 +197,14 @@ class DialPadViewController: UIViewController {
     }
     
     @IBAction func viewRecsTriggered(_ sender: Any) {
+        if Data.dialJamCallsMade > 0 {
+            Data.newEvent(event: Event(date: Date(), summary: "\(Data.dialJamCallsMade) calls, \(Data.dialJamBooked) demos", ID: String(Data.nextEventTag)))
+        }
+        Data.dialJamBooked = 0
+        Data.dialJamCallsMade = 0
+        Data.dialJamPhoneNumber = ""
+        Data.thisRec = nil
+        Data.refreshStatusesAndHotness()
         performSegue(withIdentifier: "dialpadToViewRecs", sender: self)
     }
     
@@ -193,8 +245,10 @@ class DialPadViewController: UIViewController {
     @IBOutlet weak var navigationViewBottomConstraint: NSLayoutConstraint!
     @IBOutlet weak var clearButton: UIButton!
     @IBOutlet weak var goButton: UIButton!
+    @IBOutlet weak var contactLabel: UILabel!
     @IBOutlet weak var bottomStatusConstraint: NSLayoutConstraint!
     @IBOutlet weak var topStatusConstraint: NSLayoutConstraint!
+    @IBOutlet weak var instructions: UILabel!
     /*
     // MARK: - Navigation
 

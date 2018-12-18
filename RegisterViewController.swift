@@ -7,6 +7,8 @@
 //
 
 import UIKit
+import FirebaseAuth
+import FirebaseDatabase
 
 class RegisterViewController: UIViewController, UITextFieldDelegate {
 
@@ -17,7 +19,7 @@ class RegisterViewController: UIViewController, UITextFieldDelegate {
         setUpDelegation()
     }
 
-    
+    let ref = Database.database().reference()
     
     //=================================== HELPER FUNCTIONS ============================================
     
@@ -28,7 +30,6 @@ class RegisterViewController: UIViewController, UITextFieldDelegate {
         UIView.beginAnimations("animateTextField", context: nil)
         UIView.setAnimationBeginsFromCurrentState(true)
         UIView.setAnimationDuration(moveDuration)
-        print("new anchor ", convertedAnchor)
         self.view.frame.origin.y = convertedAnchor
         UIView.commitAnimations()
     }
@@ -106,6 +107,110 @@ class RegisterViewController: UIViewController, UITextFieldDelegate {
     @IBOutlet weak var confirmPasswordField: UITextField!
     @IBOutlet weak var teamNumberField: UITextField!
     @IBOutlet weak var registerButton: UIButton!
+    @IBOutlet weak var statusLabel: UILabel!
+    
+    
+    @IBAction func registerTriggered(_ sender: Any) {
+        if let name = fullNameField.text {
+            if !name.contains(" ") {
+                statusLabel.text = "Please enter your full name"
+                return
+            }
+            if let email = emailField.text {
+                if email == "" {
+                    statusLabel.text = "Please enter a valid email"
+                    return
+                }
+                Data.userEmail = email
+                if let phoneNumber = phoneNumberField.text {
+                    if !isPhoneNumber(toCheck: phoneNumber) {
+                        statusLabel.text = "Please enter a valid phone number"
+                        return
+                    }
+                    if let password = passwordField.text {
+                        if let confirmedPassword = confirmPasswordField.text {
+                            if confirmedPassword != password {
+                                statusLabel.text = "Passwords do not match"
+                                return
+                            }
+                            if password.count < 8 {
+                                statusLabel.text = "Password must be at least 8 characters"
+                                return
+                            }
+                            if var teamID = teamNumberField.text {
+                                if teamID == "" {
+                                    teamID = "0"
+                                }
+                                let IDnum = Int(teamID)
+                                if IDnum == nil {
+                                    statusLabel.text = "Please provide a valid team ID"
+                                    return
+                                }
+                                print("got this far")
+                                teamID = String(IDnum!)
+                                ref.observeSingleEvent(of: .value) { (snapshot) in
+                                    if let nextID = snapshot.childSnapshot(forPath: "nextTeamID").value as? Int {
+                                       print("got this far")
+                                            if IDnum! < nextID {
+                                                let sv = UIViewController.displaySpinner(onView: self.view)
+                                                Auth.auth().createUser(withEmail: email, password: password) { (authResult, error) in
+                                                    if let err = error {
+                                                        print(err)
+                                                    }
+                                                    if let user = authResult?.user {
+                                                        print("authentication success")
+                                                        UserDefaults.standard.set(email, forKey: "email")
+                                                        UserDefaults.standard.set(password, forKey: "password")
+                                                        QueryManager.createUser(uid: user.uid, teamID: teamID, name: name, phoneNumber: phoneNumber, completion: {
+                                                            self.performSegue(withIdentifier: "registerToDashboard", sender: self)
+                                                            UIViewController.removeSpinner(spinner: sv)
+                                                        })
+                                                    } else {
+                                                        self.statusLabel.text = "invalid input"
+                                                        UIViewController.removeSpinner(spinner: sv)
+                                                        print(error.debugDescription)
+                                                        return
+                                                    }
+                                                }
+                                            } else {
+                                                self.statusLabel.text = "Please provide a valid team ID"
+                                                return
+                                            }
+                                        
+                                    }
+                                }
+                            } else {
+                                statusLabel.text = "Please provide a valid team ID"
+                                return
+                            }
+                        } else {
+                            statusLabel.text = "Please confirm your password"
+                            return
+                        }
+                    } else {
+                        statusLabel.text = "Please provide a password"
+                        return
+                    }
+                } else {
+                    statusLabel.text = "Please provide a phone number"
+                    return
+                }
+            } else {
+                statusLabel.text = "Please provide an email"
+                return
+            }
+        } else {
+            statusLabel.text = "Please provide a valid name"
+            return
+        }
+    }
+    
+    func isPhoneNumber(toCheck: String) -> Bool {
+        let num = Int(toCheck)
+        if num != nil && toCheck.count == 10 {
+            return true
+        } else {return false}
+    }
     
     /*
      // MARK: - Navigation

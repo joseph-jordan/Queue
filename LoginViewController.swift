@@ -7,17 +7,58 @@
 //
 
 import UIKit
+import FirebaseAuth
 
 class LoginViewController: UIViewController, UITextFieldDelegate {
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        if Data.firstSignIn {
+            Data.firstSignIn = false
+        if let email = UserDefaults.standard.value(forKey: "email") as? String {
+            Data.userEmail = email
+            if let password = UserDefaults.standard.value(forKey: "password") as? String {
+                let sv = UIViewController.displaySpinner(onView: self.view)
+                Auth.auth().signIn(withEmail: email, password: password) { (outcome, error) in
+                    if let result = outcome {
+                        let user = result.user
+                        QueryManager.loadUserData(uid: user.uid, completion: {
+                            UIViewController.removeSpinner(spinner: sv)
+                            self.performSegue(withIdentifier: "login", sender: self)
+                        })
+                    } else {
+                        UIViewController.removeSpinner(spinner: sv)
+                    }
+                }
+            }
+        }
+    }
         setUpDelegation()
         // Do any additional setup after loading the view.
     }
     
     func login() {
-        performSegue(withIdentifier: "login", sender: self)
+        if let email = emailField.text {
+            Data.userEmail = email
+            if let password = passwordField.text {
+                let sv = UIViewController.displaySpinner(onView: self.view)
+                Auth.auth().signIn(withEmail: email, password: password) { (outcome, error) in
+                    if let result = outcome {
+                        let user = result.user
+                        UserDefaults.standard.set(email, forKey: "email")
+                        UserDefaults.standard.set(password, forKey: "password")
+                        
+                        QueryManager.loadUserData(uid: user.uid, completion: {
+                            UIViewController.removeSpinner(spinner: sv)
+                            self.performSegue(withIdentifier: "login", sender: self)
+                        })
+                    } else {
+                        self.statusLabel.text = "invalid sign in"
+                        UIViewController.removeSpinner(spinner: sv)
+                    }
+                }
+            }
+        }
     }
     
     //========================== SETUP ===========================
@@ -50,6 +91,7 @@ class LoginViewController: UIViewController, UITextFieldDelegate {
     }    
     
     //========================= OUTLETS ===================
+    @IBOutlet weak var statusLabel: UILabel!
     
     @IBOutlet weak var emailField: UITextField!
     

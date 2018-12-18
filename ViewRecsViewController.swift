@@ -12,11 +12,11 @@ class ViewRecsViewController: UIViewController, UITableViewDelegate, UITableView
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        Data.currentGroup = .Active
         addGestureRecognizer()
         prepareDelegation()
         prepareQueueButtons()
         prepareFilterView()
-        Data.filter = .AlphaLast
         Data.refreshFilter()
     }
     
@@ -253,8 +253,6 @@ class ViewRecsViewController: UIViewController, UITableViewDelegate, UITableView
         
         cell.phoneNumberLabel.text = currentRec.phoneDescription()
         cell.historyLabel.text = "History (\(currentRec.numCalls) Calls, \(currentRec.numAnswers) Answers)"
-        cell.notesTextView.text = currentRec.note
-        cell.notesTextView.sizeToFit()
         cell.tableView.dataSource = cell
         cell.tableView.delegate = cell
         cell.entries = currentRec.getEntries()
@@ -288,7 +286,7 @@ class ViewRecsViewController: UIViewController, UITableViewDelegate, UITableView
     func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
         let rec = Data.filteredRecs[indexPath.section][indexPath.row]
         if rec.isExpanded {
-            return CGFloat(168 + min(25 * rec.getEntries().count, 150))
+            return CGFloat(88 + min(25 * rec.getEntries().count, 150))
         } else {
             return 45
         }
@@ -317,6 +315,11 @@ class ViewRecsViewController: UIViewController, UITableViewDelegate, UITableView
     }
     
     @IBAction func addRecsTriggered(_ sender: Any) {
+        for rec in Data.callQueue {
+            rec.isQueued = false
+        }
+        Data.callQueue = []
+        performSegue(withIdentifier: "addContact", sender: self)
     }
     
     
@@ -345,8 +348,24 @@ class ViewRecsViewController: UIViewController, UITableViewDelegate, UITableView
         }
     }
     
+    @IBAction func moreTriggered(_ sender: Any) {
+        if let button = sender as? UIButton {
+            if let cell = button.superview?.superview as? RecTableViewCell {
+                let indexPath = self.contactsTableView.indexPath(for: cell)!
+                Data.thisRec = Data.filteredRecs[indexPath.section][indexPath.row]
+                for rec in Data.callQueue {
+                    rec.isQueued = false
+                }
+                Data.callQueue = []
+                Data.homeIsDashboard = false
+                performSegue(withIdentifier: "viewContact", sender: self)
+            }
+        }
+    }
+    
+    
     @IBAction func goButtonTriggered(_ sender: Any) {
-        
+        performSegue(withIdentifier: "contactsToJam", sender: self)
     }
     
     @IBAction func clearButtonTriggered(_ sender: Any) {

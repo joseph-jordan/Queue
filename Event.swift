@@ -12,15 +12,18 @@ class Event: NSObject {
     var date : Date
     var summary : String
     var rec: Rec?
+    var ID: String
     
-    init(date: Date, summary: String, rec: Rec?) {
+    init(date: Date, summary: String, rec: Rec?, ID: String) {
         self.date = date
         self.summary = summary
         self.rec = rec
+        self.ID = ID
     }
     
-    init(date: Date, summary: String) {
+    init(date: Date, summary: String, ID: String) {
         self.date = date
         self.summary = summary
+        self.ID = ID
     }
 }

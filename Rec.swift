@@ -17,16 +17,19 @@ class Rec: NSObject {
     var phoneNumber : String
     var note: String?
     var isQueued = false
-    //var ID : String?
+    var ID : String
     var status: Status = .Active
     var starred: Bool
-    var hot: Bool = true
+    var hot: Bool = false
     var isExpanded: Bool = false
     private var entries: [Entry] = []
     var numCalls : Int = 0
     var numAnswers : Int = 0
+    var rating : Double = 0.0
     
-    init(firstName : String?, lastName: String?, referrer : String?, note : String, phoneNumber : String, starred: Bool, entries : [Entry]) {
+    init(firstName : String?, lastName: String?, referrer : String?, note : String?, phoneNumber : String, starred: Bool, entries : [Entry], ID: String, status: Status) {
+        self.status = status
+        self.ID = ID
         self.firstName = firstName
         self.lastName = lastName
         if let name = firstName {
@@ -45,15 +48,15 @@ class Rec: NSObject {
             }
         }
         self.referrer = referrer
-        self.note = note
+        self.note = note ?? ""
         self.phoneNumber = phoneNumber
         //self.ID = ID
         self.starred = starred
         for entry in entries {
-            switch entry.entryOutcome {
-            case "Unreached":
+            switch entry.type {
+            case .Unreached:
                 numCalls += 1
-            case "Demo Booked", "Call Back", "Declined":
+            case .Booked, .CallBack, .Declined:
                 numAnswers += 1
                 numCalls += 1
             default:
@@ -72,28 +75,28 @@ class Rec: NSObject {
     }
     
     func appendEntry(entry: Entry) {
-        switch entry.entryOutcome {
-        case "Unreached":
+        switch entry.type {
+        case .Unreached:
             numCalls += 1
-        case "Demo Booked", "Call Back", "Declined":
+        case .Booked, .CallBack, .Declined:
             numAnswers += 1
             numCalls += 1
         default:
             break;
         }
-        entries.append(entry)
+        entries.insert(entry, at: 0)
+        QueryManager.appendEntryToRec(recID: self.ID, entry: entry)
     }
     
     func getFullName() -> String {
-        switch (firstName, lastName) {
-        case (.some(let first), .some(let last)):
-            return first + " " + last
-        case (.some(let first), .none):
-            return first
-        case (.none, .some(let last)):
-            return last
-        case (.none, .none):
+        let first = firstName ?? ""
+        let last = lastName ?? ""
+        if first == "" && last == "" {
             return phoneDescription()
+        } else if first == ""{
+            return last
+        } else {
+            return first + " " + last
         }
     }
     
@@ -168,7 +171,7 @@ class Rec: NSObject {
     }
     
     func sortEntries() {
-        entries.sort(by: {$0.date < $1.date})
+        entries.sort(by: {$0.date > $1.date})
     }
     
     /*static var alphaLastSort: (Rec, Rec) -> Bool = {$0.lastName < $1.lastName}
